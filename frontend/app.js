@@ -90,7 +90,11 @@ async function apiFetch(endpoint, options = {}) {
         renderMovieGrid();
     }
 
-    const errorMsg = (typeof ressponseData === 'object' && (responseData.message || responseData.error)) ? (responseData.message || responseData.error) : 'Request failed with status &{status}'; throw new Error(errorMsg);
+    const errorMsg = (typeof responseData === 'object' && responseData !== null && (responseData.message || responseData.error))
+    ? (responseData.message || responseData.error)
+    : `Request failed with status ${status}`;
+
+    throw new Error(errorMsg);
   }
 
     return responseData;
@@ -238,7 +242,7 @@ async function loadDiscoverMovies(shuffle = false) {
     const data = await apiFetch('/movies');
     // Normalize response: could be array or { data: [...] }
     state.allMovies = Array.isArray(data) ? data : (data.data || data.movies || []);
-    
+
     if (shuffle) {
       state.allMovies.sort(() => Math.random() - 0.5);
       showToast('Daftar film berhasil diacak (shuffle)!', 'success');
@@ -289,7 +293,7 @@ function filterByGenre(genre) {
 
 function applyMovieFilters() {
   state.filteredMovies = state.allMovies.filter(movie => {
-    const matchesSearch = !state.searchQuery || 
+    const matchesSearch = !state.searchQuery ||
       movie.title.toLowerCase().includes(state.searchQuery) ||
       (movie.director && movie.director.toLowerCase().includes(state.searchQuery));
 
@@ -327,7 +331,7 @@ function renderMovieGrid() {
         <!-- Poster & Hover Overlay -->
         <div class="relative aspect-[2/3] w-full overflow-hidden bg-brand-dark cursor-pointer" onclick="openMovieDetail(${movie.id})">
           <img src="${poster}" alt="${movie.title}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.src='https://via.placeholder.com/300x450/1e242b/8996a6?text=Poster'" />
-          
+
           <!-- Rating badge -->
           <div class="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md bg-black/80 backdrop-blur text-xs font-bold text-amber-400 flex items-center gap-1 border border-white/10">
             ★ <span>${movie.rating || 'N/A'}</span>
@@ -471,7 +475,7 @@ async function loadWatchlist() {
   try {
     const data = await apiFetch('/watchlist');
     state.watchlist = Array.isArray(data) ? data : (data.data || data.watchlists || data.watchlist || []);
-    
+
     // Update badge count
     const badge = document.getElementById('watchlist-badge');
     const countEl = document.getElementById('watchlist-count');
@@ -748,7 +752,7 @@ async function submitAiRecommendation() {
 
   const btn = document.getElementById('btn-submit-ai');
   const resultContainer = document.getElementById('ai-result-container');
-  
+
   btn.disabled = true;
   btn.innerHTML = `<div class="animate-spin w-4 h-4 border-2 border-black border-t-transparent rounded-full"></div> Analyzing...`;
 
@@ -769,7 +773,7 @@ async function submitAiRecommendation() {
 
 function renderAiRecommendation(data) {
   const container = document.getElementById('ai-result-container');
-  
+
   // Backend might return { movie_id: 1, reasoning: "..." } or full { movie: {...}, reasoning: "..." }
   const movieId = data.movie_id || data.movieId || (data.movie && data.movie.id);
   const matchedMovie = data.movie || state.allMovies.find(m => String(m.id) === String(movieId)) || {
@@ -798,7 +802,7 @@ function renderAiRecommendation(data) {
 
         <div class="flex flex-col sm:flex-row gap-6 items-start">
           <img src="${poster}" alt="${matchedMovie.title}" class="w-36 sm:w-44 aspect-[2/3] object-cover rounded-xl border border-brand-border shadow-xl shrink-0" />
-          
+
           <div class="flex-1 space-y-3">
             <div>
               <div class="flex items-center gap-2">
@@ -919,8 +923,8 @@ async function handleAuthSubmit(event) {
 
   try {
     const endpoint = state.authMode === 'register' ? '/auth/register' : '/auth/login';
-    const payload = state.authMode === 'register' 
-      ? { email, password, username: username || email.split('@')[0] } 
+    const payload = state.authMode === 'register'
+      ? { email, password, username: username || email.split('@')[0] }
       : { email, password };
 
     const data = await apiFetch(endpoint, {
