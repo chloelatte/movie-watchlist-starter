@@ -9,6 +9,7 @@
 const state = {
   apiBaseUrl: localStorage.getItem('filmlog_api_url') || 'http://localhost:8000/api',
   token: localStorage.getItem('filmlog_token') || null,
+  sessionExpired: false,
   user: JSON.parse(localStorage.getItem('filmlog_user') || 'null'),
   currentTab: 'discover',
   authMode: 'login', // 'login' | 'register'
@@ -30,6 +31,7 @@ async function apiFetch(endpoint, options = {}) {
   const method = options.method || 'GET';
   const headers = {
     'Content-Type': 'application/json',
+    'Accept': 'application/json',
     ...(options.headers || {})
   };
 
@@ -67,11 +69,29 @@ async function apiFetch(endpoint, options = {}) {
     });
 
     if (!ok) {
-      const errorMsg = (typeof responseData === 'object' && (responseData.message || responseData.error))
-        ? (responseData.message || responseData.error)
-        : `Request failed with status ${status}`;
-      throw new Error(errorMsg);
+      if (status === 401 && state.token && !endpoint.startsWith('auth/')) {
+        // Token might be invalid/expired, clear it
+        state.sessionExpired = true;
+        localStorage.setItem('filmlog_session_expired', 'true');
+        state.token = null;
+        state.user = null;
+
+        localStorage.removeItem('filmlog_token');
+        localStorage.removeItem('filmlog_user');
+
+        state.watchedList = [];
+        state.watchlist = [];
+
+        showToast('Sesi login Anda telah berakhir. Silakan login kembali.', 'info');
+
+        renderAuthUI();
+        renderWatchlistGrid();
+        renderWatchedList();
+        renderMovieGrid();
     }
+
+    const errorMsg = (typeof ressponseData === 'object' && (responseData.message || responseData.error)) ? (responseData.message || responseData.error) : 'Request failed with status &{status}'; throw new Error(errorMsg);
+  }
 
     return responseData;
   } catch (err) {
@@ -130,31 +150,43 @@ function toggleLogsDrawer() {
   }
 }
 
+function updateApiUrlDisplay() {
+  const display = document.getElementById('api-url-display');
+
+  if (display) {
+    display.textContent = state.apiBaseUrl;
+  }
+}
+
 // ==========================================
 // 3. INITIALIZATION
 // ==========================================
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   lucide.createIcons();
   updateApiUrlDisplay();
   renderAuthUI();
   loadDiscoverMovies();
-  if (state.token) {
-    loadWatchlist();
-    loadWatchedList();
-  }
-});
 
-function updateApiUrlDisplay() {
-  const display = document.getElementById('api-url-display');
-  const input = document.getElementById('api-base-url-input');
-  if (display) display.textContent = state.apiBaseUrl;
-  if (input) input.value = state.apiBaseUrl;
+if (state.token) {
+  await Promise.all([loadWatchlist(), loadWatchedList()]);
 }
+
+if (localStorage.getItem('filmlog_session_expired') === 'true') {
+  showToast('Sesi login Anda telah berakhir. Silakan login kembali.', 'info');
+  localStorage.removeItem('filmlog_session_expired');
+}
+});
 
 // ==========================================
 // 4. TAB NAVIGATION
 // ==========================================
 function switchTab(tabId) {
+  // Jangan tampilkan data pribadi jika pengguna belum login
+  if ((tabId === 'watchlist' || tabId === 'watched') && !state.token) {
+    showToast('Silakan login terlebih dahulu', 'info');
+    openAuthModal('login');
+    return;
+  }
   state.currentTab = tabId;
 
   // Update tabs UI
@@ -346,7 +378,9 @@ async function openMovieDetail(movieId) {
   // If detail isn't full, try calling backend: GET /api/movies/:id
   try {
     const remoteMovie = await apiFetch(`/movies/${movieId}`);
-    if (remoteMovie) movie = remoteMovie.data || remoteMovie;
+    if (remoteMovie) {
+      movie = remoteMovie.movie || remoteMovie.data?.movie || remoteMovie.data || remoteMovie;
+    }
   } catch (err) {
     // If endpoint not ready, fall back to existing movie in state
   }
@@ -407,7 +441,7 @@ async function openMovieDetail(movieId) {
             <span>${isWatchlisted ? 'Remove from Watchlist' : 'Add to Watchlist'}</span>
           </button>
 
-          <button onclick="closeMovieDetailModal(); openWatchedModal(${movie.id})" class="py-2.5 px-4 rounded-xl font-bold text-xs bg-brand-surfaceHover hover:bg-amber-400 hover:text-black border border-brand-border text-white flex items-center justify-center gap-2 transition">
+          <button onclick="openWatchedModal(${movie.id})" class="py-2.5 px-4 rounded-xl font-bold text-xs bg-brand-surfaceHover hover:bg-amber-400 hover:text-black border border-brand-border text-white flex items-center justify-center gap-2 transition">
             <i data-lucide="star" class="w-4 h-4"></i>
             <span>Log Review</span>
           </button>
@@ -436,7 +470,7 @@ async function loadWatchlist() {
 
   try {
     const data = await apiFetch('/watchlist');
-    state.watchlist = Array.isArray(data) ? data : (data.data || data.watchlist || []);
+    state.watchlist = Array.isArray(data) ? data : (data.data || data.watchlists || data.watchlist || []);
     
     // Update badge count
     const badge = document.getElementById('watchlist-badge');
@@ -448,6 +482,7 @@ async function loadWatchlist() {
     if (countEl) countEl.textContent = `${state.watchlist.length} films`;
 
     renderWatchlistGrid();
+    renderMovieGrid();
   } catch (err) {
     console.error('Failed to load watchlist:', err.message);
   }
@@ -717,12 +752,7 @@ async function submitAiRecommendation() {
   btn.disabled = true;
   btn.innerHTML = `<div class="animate-spin w-4 h-4 border-2 border-black border-t-transparent rounded-full"></div> Analyzing...`;
 
-  try {
-    // POST /api/movies/recommend
-    const response = await apiFetch('/movies/recommend', {
-      method: 'POST',
-      body: JSON.stringify({ prompt: prompt, query: prompt, description: prompt })
-    });
+  try { const response = await apiFetch('/movies/recommend', { method: 'POST', body: JSON.stringify({ prompt: prompt, query: prompt, description: prompt })});
 
     const resultData = response.data || response;
     renderAiRecommendation(resultData);
@@ -929,10 +959,19 @@ async function handleAuthSubmit(event) {
 function logout() {
   state.token = null;
   state.user = null;
+
   state.watchlist = [];
   state.watchedList = [];
   localStorage.removeItem('filmlog_token');
   localStorage.removeItem('filmlog_user');
+
+  renderWatchlistGrid();
+  renderWatchedList();
+  const badge = document.getElementById('watchlist-badge');
+  const countEl = document.getElementById('watchlist-count');
+
+  if(badge){badge.textContent = '0'; badge.classList.add('hidden');}
+  if (countEl){ countEl.textContent = '0 films';}
   renderAuthUI();
   applyMovieFilters();
   switchTab('discover');
