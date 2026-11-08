@@ -13,7 +13,7 @@ class MovieSeeder extends Seeder
      */
     public function run(): void
     {
-        $file = base_path('../data/movies.json');
+        $file = base_path('data/movies.json');
 
         $movies = json_decode(file_get_contents($file), true);
 
