@@ -20,6 +20,12 @@ class GeminiController extends Controller
         // Get all available movies from local database
         $movies = Movie::all();
 
+        if ($movies->isEmpty()) {
+            return response()->json([
+                'message' => 'No movies are available for recommendations.',
+            ], 503);
+        }
+
         // Prepare movie catalog for Gemini
         $catalog = $movies->map(function ($movie) {
             return [
@@ -104,7 +110,8 @@ class GeminiController extends Controller
             !is_int($recommendation['movie_id']) ||
             !isset($recommendation['reasoning']) ||
             !is_string($recommendation['reasoning']) ||
-            trim($recommendation['reasoning']) === ''
+            trim($recommendation['reasoning']) === '' ||
+            mb_strlen($recommendation['reasoning']) > 500
         ) {
             return response()->json([
                 'message' => 'Gemini returned an invalid recommendation.',

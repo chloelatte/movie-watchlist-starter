@@ -44,6 +44,30 @@ class MovieApiTest extends TestCase
                  ->assertJsonCount(7, 'movies');
     }
 
+    public function test_movies_reject_invalid_search_parameter(): void
+    {
+        $response = $this->getJson('/api/movies?search[]=Inception');
+
+        $response->assertStatus(422)
+                 ->assertJsonValidationErrors('search');
+    }
+
+    public function test_movies_reject_invalid_genre_parameter(): void
+    {
+        $response = $this->getJson('/api/movies?genre[]=Sci-Fi');
+
+        $response->assertStatus(422)
+                 ->assertJsonValidationErrors('genre');
+    }
+
+    public function test_movies_reject_invalid_random_parameter(): void
+    {
+        $response = $this->getJson('/api/movies?random=invalid');
+
+        $response->assertStatus(422)
+                 ->assertJsonValidationErrors('random');
+    }
+
     public function test_movie_detail_can_be_retrieved_by_id(): void
     {
         $this->seed(MovieSeeder::class);
@@ -454,5 +478,70 @@ class MovieApiTest extends TestCase
                  ->assertJson([
                      'message' => 'Gemini recommended a movie that does not exist in the catalog.',
                  ]);
+    }
+
+    public function test_gemini_rejects_empty_movie_catalog(): void
+    {
+        Http::fake();
+
+        $response = $this->postJson('/api/movies/recommend', [
+            'prompt' => 'Recommend a science fiction movie.',
+        ]);
+
+        $response->assertStatus(503)
+                 ->assertJson([
+                     'message' => 'No movies are available for recommendations.',
+                 ]);
+
+        Http::assertNothingSent();
+    }
+
+    public function test_gemini_rejects_reasoning_longer_than_500_characters(): void
+    {
+        $this->seed(MovieSeeder::class);
+
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [
+                    [
+                        'content' => [
+                            'parts' => [
+                                [
+                                    'text' => json_encode([
+                                        'movie_id' => 1,
+                                        'reasoning' => str_repeat('A', 501),
+                                    ]),
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ], 200),
+        ]);
+        $response = $this->postJson('/api/movies/recommend', [
+            'prompt' => 'Recommend a science fiction movie.',
+        ]);
+
+        $response->assertStatus(502)
+                 ->assertJson([
+                     'message' => 'Gemini returned an invalid recommendation.',
+                ]);
+    }
+
+    public function test_login_is_rate_limited_after_five_attempts(): void
+    {
+        for ($i = 0; $i < 5; $i++) {
+            $this->postJson('/api/auth/login', [
+                'email' => 'unknown@example.com',
+                'password' => 'WrongPassword123!',
+            ])->assertStatus(401);
+        }
+
+        $response = $this->postJson('/api/auth/login', [
+            'email' => 'unknown@example.com',
+            'password' => 'WrongPassword123!',
+        ]);
+
+        $response->assertStatus(429);
     }
 }

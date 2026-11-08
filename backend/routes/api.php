@@ -8,12 +8,17 @@ use App\Http\Controllers\Api\MovieController;
 use App\Http\Controllers\Api\GeminiController;
 use App\Http\Controllers\Api\StatisticsController;
 
-Route::post('/auth/register', [AuthController::class, 'register']);
-Route::post('/auth/login', [AuthController::class, 'login']);
+Route::post('/auth/register', [AuthController::class, 'register'])
+    ->middleware('throttle:register');
+
+Route::post('/auth/login', [AuthController::class, 'login'])
+    ->middleware('throttle:login');
 
 Route::get('/movies', [MovieController::class, 'index']);
 Route::get('/movies/{id}', [MovieController::class, 'show']);
-Route::post('/movies/recommend', [GeminiController::class, 'recommend']);
+
+Route::post('/movies/recommend', [GeminiController::class, 'recommend'])
+    ->middleware('throttle:gemini');
 
 Route::middleware('auth:api')->group(function () {
     Route::get('/watchlist', [WatchlistController::class, 'index']);

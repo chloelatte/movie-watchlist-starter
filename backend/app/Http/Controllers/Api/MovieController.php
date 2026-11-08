@@ -10,17 +10,24 @@ class MovieController extends Controller
 {
     public function index(Request $request)
     {
+        // Validasi parameter pencarian dan filter
+        $request->validate([
+            'search' => 'sometimes|nullable|string|max:100',
+            'genre' => 'sometimes|nullable|string|max:50',
+            'random' => 'sometimes|nullable|boolean',
+        ]);
+
         $query = Movie::query();
 
-        if ($request->filled('genre')){
+        if ($request->filled('genre')) {
             $query->whereJsonContains('genres', $request->genre);
         }
 
-        if ($request->filled('search')){
+        if ($request->filled('search')) {
             $query->where('title', 'like', '%' . $request->search . '%');
         }
 
-        if ($request->boolean('random')){
+        if ($request->boolean('random')) {
             $query->inRandomOrder();
         }
 
@@ -35,7 +42,7 @@ class MovieController extends Controller
     {
         $movie = Movie::find($id);
 
-        if (!$movie){
+        if (!$movie) {
             return response()->json([
                 'message' => 'Movie not found.',
             ], 404);
