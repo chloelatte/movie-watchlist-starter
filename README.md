@@ -168,6 +168,8 @@ php artisan db:seed
 
 The seeder executes `MovieSeeder` through `DatabaseSeeder`.
 
+**Note:** Run the seeder only once on a fresh database. Running it again on an already populated database may cause duplicate primary key errors because the movie records use predefined IDs.
+
 ### 6. Start the Backend Server
 
 ```bash
@@ -204,11 +206,11 @@ The frontend communicates with the backend API at `http://localhost:8000/api` by
 
 ## API Documentation
 
-Base URL:
-
+Base URL: 
 ```text
 http://localhost:8000/api
 ```
+All endpoints listed below are relative to the API Base URL.
 
 ### Authentication
 
@@ -243,6 +245,22 @@ Example login request:
 | GET | `/movies` | Retrieve the movie catalog | No |
 | GET | `/movies/{id}` | Retrieve movie details | No |
 | POST | `/movies/recommend` | Generate an AI movie recommendation | No |
+
+The movie catalog endpoint supports the following optional query parameters:
+
+| Parameter | Description | Example |
+|---|---|---|
+| `search` | Search movies by title | `/api/movies?search=inception` |
+| `genre` | Filter movies by genre | `/api/movies?genre=Sci-Fi` |
+| `random` | Randomize the order of movies | `/api/movies?random=true` |
+
+Multiple query parameters can also be combined.
+
+Example:
+
+```http
+GET /api/movies?genre=Sci-Fi&search=star&random=true
+```
 
 Example AI recommendation request:
 
@@ -303,6 +321,37 @@ Protected endpoints require a valid JWT in the request header:
 Authorization: Bearer YOUR_JWT_TOKEN
 Accept: application/json
 ```
+
+## Testing
+
+FilmLog includes automated feature tests to verify API functionality, authentication, input validation, and Gemini recommendation behavior.
+
+To run the automated tests, navigate to the backend directory:
+
+```bash
+cd backend
+```
+
+Then execute:
+
+```bash
+php artisan test
+```
+
+The test suite uses an in-memory SQLite database, keeping automated tests separate from the local MySQL development database.
+
+Gemini API requests are mocked during testing, so a valid Gemini API key and an active internet connection are not required to run the automated test suite.
+
+The test suite currently contains 25 tests (23 application-specific feature tests and 2 default Laravel tests), with 69 assertions. All tests passed in the latest run.
+
+The application-specific tests cover:
+
+- Movie listing, searching, filtering, and details.
+- User registration and login.
+- JWT-protected watchlist operations.
+- Watched movies and review validation.
+- Personal movie statistics.
+- Gemini recommendation responses and local catalog validation.
 
 ## Database Documentation
 
