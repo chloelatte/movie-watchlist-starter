@@ -1,0 +1,544 @@
+{
+  "info": {
+    "_postman_id": "7457f21a-299c-4ae3-8995-68a6dab0e5f3",
+    "name": "FilmLog API",
+    "description": "# FilmLog API\n\nFilmLog is a movie watchlist REST API built with Laravel. It provides user authentication, movie catalog browsing, personal watchlists, watched-movie reviews, statistics, and AI-powered movie recommendations using Google Gemini.\n\n## Getting Started\n1. Set the `baseUrl` collection variable to your local API URL. The default value is `http://localhost:8000/api`.\n2. Send a **Register** request using a unique email address.\n3. Send a **Login** request. After a successful login, the JWT access token is automatically saved to the `token` collection variable.\n4. Use the protected endpoints. Their Bearer Token authorization is configured to use `{{token}}`.\n\n## Authentication\nProtected endpoints require a valid JWT access token in the Authorization header:\n`Authorization: Bearer {{token}}`\n\n## Collection Variables\n- `baseUrl`: Base URL of the FilmLog API.\n- `token`: JWT access token saved automatically after a successful login.\n- `movieId`: Movie ID used by movie-specific requests.\n\n## Notes\n- Make sure the Laravel backend server is running before sending requests.\n- A valid Gemini API key and a non-empty local movie catalog are required for successful AI recommendations.\n- Registration requires a unique email address. Use a test account when exploring the API.\n- Requests that create or delete records will modify the authenticated user's data.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "59593853"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"filmuser\",\n  \"email\": \"filmuser@example.com\",\n  \"password\": \"password123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Create a new user account. Provide a unique username and email address, and a password containing at least 8 characters. A successful request returns HTTP 201 Created."
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.token) {",
+                  "        pm.collectionVariables.set('token', response.token);",
+                  "        console.log('JWT token saved to collection variable: token');",
+                  "    } else {",
+                  "        console.warn('Login succeeded, but response.token was not found. Check AuthController response.');",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"filmuser@example.com\",\n  \"password\": \"password123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Authenticate with an email address and password. A successful request returns HTTP 200 OK and a JWT token. The test script automatically saves the response `token` value to the collection variable."
+          },
+          "response": []
+        }
+      ],
+      "description": "Endpoints for creating a user account and obtaining a JWT access token."
+    },
+    {
+      "name": "Movies",
+      "item": [
+        {
+          "name": "Get All Movies",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/movies",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "movies"
+              ]
+            },
+            "description": "Retrieve the movie catalog. This endpoint is public and does not require authentication."
+          },
+          "response": []
+        },
+        {
+          "name": "Search Movies",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/movies?search=batman",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "movies"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "batman"
+                }
+              ]
+            },
+            "description": "Search the movie catalog by title using the `search` query parameter. Change the sample value as needed."
+          },
+          "response": []
+        },
+        {
+          "name": "Filter Movies by Genre",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/movies?genre=Action",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "movies"
+              ],
+              "query": [
+                {
+                  "key": "genre",
+                  "value": "Action"
+                }
+              ]
+            },
+            "description": "Filter the movie catalog by genre using the `genre` query parameter. Change the sample value to a genre available in the catalog."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Random Movies",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/movies?random=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "movies"
+              ],
+              "query": [
+                {
+                  "key": "random",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "Retrieve movies in randomized order by setting the `random` query parameter to `true`."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Movie by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/movies/{{movieId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "movies",
+                "{{movieId}}"
+              ]
+            },
+            "description": "Retrieve the details of a specific movie. Set the `movieId` collection variable to an existing movie ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Gemini Recommendation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prompt\": \"I want a thoughtful science-fiction movie with an interesting story.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/movies/recommend",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "movies",
+                "recommend"
+              ]
+            },
+            "description": "Request one movie recommendation based on the supplied prompt. The recommendation is grounded in the local movie catalog. A valid Gemini API key and a non-empty movie catalog are required."
+          },
+          "response": []
+        }
+      ],
+      "description": "Public endpoints for browsing the movie catalog, searching and filtering movies, retrieving movie details, and requesting AI-powered recommendations."
+    },
+    {
+      "name": "Watchlist",
+      "item": [
+        {
+          "name": "Get My Watchlist",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/watchlist",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "watchlist"
+              ]
+            },
+            "description": "Retrieve the authenticated user's watchlist. Requires a valid JWT access token."
+          },
+          "response": []
+        },
+        {
+          "name": "Add Movie to Watchlist",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"movieId\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/watchlist",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "watchlist"
+              ]
+            },
+            "description": "Add an existing movie to the authenticated user's watchlist. Set `movieId` in the request body to an existing movie ID. Requires a valid JWT access token."
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Movie from Watchlist",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/watchlist/{{movieId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "watchlist",
+                "{{movieId}}"
+              ]
+            },
+            "description": "Remove the specified movie from the authenticated user's watchlist. Set the `movieId` collection variable to the target movie ID. Requires a valid JWT access token."
+          },
+          "response": []
+        }
+      ],
+      "description": "Authenticated endpoints for viewing, adding, and removing movies in the current user's watchlist."
+    },
+    {
+      "name": "Watched Movies",
+      "item": [
+        {
+          "name": "Get My Watched Movies",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/watched",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "watched"
+              ]
+            },
+            "description": "Retrieve the authenticated user's watched movies and reviews. Requires a valid JWT access token."
+          },
+          "response": []
+        },
+        {
+          "name": "Add Watched Movie and Review",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"movieId\": 1,\n  \"rating\": 5,\n  \"review\": \"A great movie with a memorable story.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/watched",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "watched"
+              ]
+            },
+            "description": "Record a movie as watched and submit a rating from 1 to 5 with a review. The movie must exist. Requires a valid JWT access token."
+          },
+          "response": []
+        }
+      ],
+      "description": "Authenticated endpoints for retrieving watched movies and submitting movie ratings and reviews."
+    },
+    {
+      "name": "Statistics",
+      "item": [
+        {
+          "name": "Get My Statistics",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/statistics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "statistics"
+              ]
+            },
+            "description": "Retrieve viewing statistics for the authenticated user, including watchlist count, watched count, average rating, and favorite genre where available. Requires a valid JWT access token."
+          },
+          "response": []
+        }
+      ],
+      "description": "Authenticated endpoint for retrieving viewing statistics for the current user."
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000/api"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "movieId",
+      "value": "1"
+    }
+  ]
+}

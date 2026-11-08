@@ -342,7 +342,7 @@ The test suite uses an in-memory SQLite database, keeping automated tests separa
 
 Gemini API requests are mocked during testing, so a valid Gemini API key and an active internet connection are not required to run the automated test suite.
 
-The test suite currently contains 25 tests (23 application-specific feature tests and 2 default Laravel tests), with 69 assertions. All tests passed in the latest run.
+The test suite currently contains 31 tests (29 application-specific feature tests and 2 default Laravel tests), with 89 assertions. All tests passed in the latest run.
 
 The application-specific tests cover:
 
@@ -384,6 +384,8 @@ For additional frontend information and implementation details, refer to [Fronte
 - Request validation is implemented for registration, login, watchlist operations, and reviews.
 - Gemini API credentials are stored in environment variables rather than hardcoded in the source code.
 - AI-generated movie recommendations are validated against the local movie catalog.
+- Rate limiting is applied to login, registration, and Gemini recommendation endpoints to help prevent excessive requests.
+- Input validation and appropriate HTTP status codes are used to handle invalid requests and application errors.
 
 ## Project Context and Credits
 
